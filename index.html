@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Solar System Journey</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#04060c">
+<style>
+html{background:#04060c}
+body{position:fixed;inset:0;margin:0;overflow:hidden;background:radial-gradient(#141c33,#04060c 70%);font:700 clamp(13px,.7vw + .9vh,30px)/1.4 system-ui,"Noto Sans KR",sans-serif;color:#eef3ff;-webkit-user-select:none;user-select:none}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#c{touch-action:none;cursor:crosshair;transition:filter .8s,transform .8s,opacity .35s}
+#ov{pointer-events:none}
+body:not(.g) #c{filter:blur(.8vmax) brightness(.5);transform:scale(1.05)}
+.l #c,.f #c{opacity:0}
+#m{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:min(1.8em,5vmin);padding:1em;text-align:center;background:radial-gradient(#04060c00 30%,#04060ccc);transition:opacity .4s,visibility .4s}
+.g #m,.m #l,.l #g{opacity:0;visibility:hidden}
+.l #g,.m #l{display:none}
+h1{margin:0;font:900 4em/1 system-ui,"Noto Sans KR",sans-serif;letter-spacing:.08em;color:#0000;background:linear-gradient(#fff 25%,#ffd9a0 60%,#ff8a3c);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 .06em .2em #000c)}
+p{margin:0}
+#s,#q,#k{font-size:.8em;letter-spacing:.06em}
+#s.e{color:#ffb3a8;max-width:34em;white-space:pre-wrap;letter-spacing:0}
+button{display:flex;align-items:center;justify-content:center;padding:.8em 1.4em;border:0;border-radius:.5em;background:#fff;box-shadow:inset 0 -.2em #0003,0 .3em 1em #0009;font:800 1em/1.2 system-ui,"Noto Sans KR",sans-serif;letter-spacing:.1em;color:#1a1408;cursor:pointer;transition:transform .12s,filter .12s}
+button:hover{transform:translateY(-.12em);filter:brightness(1.12)}
+button:active{transform:translateY(.1em);filter:brightness(.9)}
+:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#g{display:grid;gap:min(1.1em,3vmin);justify-items:center}
+#d{padding:.9em 2.6em;background:linear-gradient(#ffe2b0,#ff9b45);font-size:1.3em;box-shadow:inset 0 -.2em #0003,0 0 2em #ff9b4599}
+#q,#k{padding:.9em 1.4em;border-radius:.7em;background:#04060cb3}
+#q{display:flex;align-items:center;gap:.4em;padding:.4em;width:24em;max-width:90vw}
+#q span{flex:1;color:#ffd9a0}
+#q button{flex:1.2;padding:.6em 0;background:none;box-shadow:none;color:#eef3ff}
+#q button:hover{background:#ffd9a033}
+#q .on{background:linear-gradient(#ffe2b0,#ff9b45);box-shadow:inset 0 -.2em #0003;color:#1a1408;pointer-events:none}
+#k{display:flex;justify-content:center;gap:1.6em;text-align:left;font-weight:600}
+#k p{display:grid;grid-template-columns:auto auto;align-content:start;align-items:center;gap:.45em .8em}
+#k p+p{padding-left:1.6em;border-left:2px solid #ffd9a040}
+#k i{display:flex;justify-self:end;align-items:center;gap:.2em;font-style:normal}
+#k b{min-width:1em;padding:.12em .45em;border-radius:.35em;background:#eef3ff;box-shadow:inset 0 -.15em #0004;color:#1a1408;text-align:center;font-size:.92em}
+#lang{position:absolute;top:1em;right:1em;z-index:2;padding:.45em .8em;border-radius:.5em;background:#04060cb3;color:#eef3ff;font:700 .75em system-ui,sans-serif;letter-spacing:.04em}
+@media(max-height:34em){#k{display:none}}
+#i{position:absolute;top:1em;left:1.2em;margin:0;font:600 .78em/1.6 ui-monospace,"Noto Sans Mono CJK KR",Consolas,monospace;white-space:pre-wrap;text-shadow:0 1px 4px #000,0 0 2px #000;pointer-events:none;max-width:46em}
+#t{position:absolute;left:0;right:0;top:16%;text-align:center;font-size:1.5em;letter-spacing:.2em;text-shadow:0 2px 12px #000;opacity:0;transition:opacity .6s;pointer-events:none}
+#t.on{opacity:1}
+#t small{display:block;font-size:.5em;letter-spacing:.08em;font-weight:600;color:#ffd9a0}
+body:not(.g) #i,body:not(.g) #t,body:not(.g) #ov{display:none}
+</style>
+</head>
+<body class="l">
+<canvas id="c"></canvas>
+<canvas id="ov"></canvas>
+<pre id="i"></pre>
+<div id="t"></div>
+<div id="m">
+  <h1 data-en="Solar System Journey" data-ko="태양계 여행">Solar System Journey</h1>
+  <div id="l"><p id="s" data-en="Loading the stars…" data-ko="별을 띄우는 중…">Loading the stars…</p></div>
+  <div id="g">
+    <button id="d" data-en="Launch" data-ko="출발">Launch</button>
+    <p id="q"><span data-en="Quality" data-ko="화질">Quality</span><button data-en="Low" data-ko="낮음">Low</button><button data-en="Medium" data-ko="보통">Medium</button><button data-en="High" data-ko="높음">High</button></p>
+    <div id="k">
+      <p>
+        <i><b>W</b><b>A</b><b>S</b><b>D</b></i><span data-en="Move" data-ko="이동">Move</span>
+        <i><b>Q</b><b>E</b></i><span data-en="Descend / ascend (take off)" data-ko="하강 / 상승(이륙)">Descend / ascend (take off)</span>
+        <i><b>Shift</b></i><span data-en="Move faster" data-ko="빠르게">Move faster</span>
+        <i><b>Space</b></i><span data-en="Jump" data-ko="점프">Jump</span>
+        <i><b>Wheel</b></i><span data-en="Adjust flight speed" data-ko="비행 속도 조절">Adjust flight speed</span>
+        <i><b>G</b></i><span data-en="Land directly below" data-ko="바로 아래에 착륙">Land directly below</span>
+      </p>
+      <p>
+        <i><b>1</b>–<b>9</b></i><span data-en="Mercury through Pluto" data-ko="수·금·지·화·목·토·천·해·명">Mercury through Pluto</span>
+        <i><b>0</b></i><span data-en="Sun" data-ko="태양">Sun</span>
+        <i><b>`</b></i><span data-en="Moon" data-ko="달">Moon</span>
+        <i><span data-en="Press the same key again" data-ko="같은 키 한 번 더">Press the same key again</span></i><span data-en="View from orbit" data-ko="궤도에서 보기">View from orbit</span>
+        <i><b>M</b></i><span data-en="Minimap" data-ko="미니맵">Minimap</span>
+        <i><b>B</b></i><span data-en="Minimap mode" data-ko="미니맵 종류">Minimap mode</span>
+        <i><b>N</b></i><span data-en="Navigation (set a destination, then hold W)" data-ko="내비게이션 (목적지 설정 후 W로 직진)">Navigation (set a destination, then hold W)</span>
+      </p>
+      <p>
+        <i><b>L</b></i><span data-en="Labels" data-ko="이름표">Labels</span>
+        <i><b>[</b><b>]</b></i><span data-en="Time speed" data-ko="시간 배속">Time speed</span>
+        <i><b>P</b></i><span data-en="Pause time" data-ko="시간 정지">Pause time</span>
+        <i><b>R</b></i><span data-en="Reset to now" data-ko="현재 시각으로">Reset to now</span>
+        <i><b>V</b></i><span data-en="Sound" data-ko="소리">Sound</span>
+        <i><b>H</b></i><span data-en="Toggle info" data-ko="정보 표시">Toggle info</span>
+        <i><b>Esc</b></i><span data-en="Menu" data-ko="메뉴">Menu</span>
+      </p>
+    </div>
+  </div>
+</div>
+<button id="lang" type="button" aria-label="Change language">한국어</button>
+<script src="i18n.js"></script>
+<script src="earth-data.js"></script>
+<script src="terrain.glsl.js"></script>
+<script src="shaders.js"></script>
+<script src="data.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
