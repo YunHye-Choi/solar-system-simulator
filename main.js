@@ -1,7 +1,7 @@
 // Solar system travel simulator: ephemeris, player movement, rendering loop, HUD and minimap.
 (() => {
   'use strict';
-  const { sin, cos, sqrt, abs, min, max, floor, PI, atan2, asin, exp, pow, log, tan } = Math;
+  const { sin, cos, sqrt, abs, min, max, floor, ceil, PI, atan2, asin, exp, pow, log, tan } = Math;
   const D2R = PI / 180;
   const AU = 1.495978707e11;
   const C_LIGHT = 299792458;
@@ -203,6 +203,10 @@
     throw new Error(msg);
   };
   if (!gl) fail('이 브라우저에서는 WebGL2를 사용할 수 없습니다. 최신 Chrome, Edge, Firefox에서 열어 주세요.');
+  const MAX_TEX_SIZE = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  const MAX_VIEWPORT = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+  const MAX_RENDER_W = min(MAX_TEX_SIZE, MAX_VIEWPORT[0]);
+  const MAX_RENDER_H = min(MAX_TEX_SIZE, MAX_VIEWPORT[1]);
 
   function program(fsSrc) {
     const mk = (type, src) => {
@@ -228,6 +232,8 @@
   let mapTex;
   let fboW = 0;
   let fboH = 0;
+  let fboCapW = 0;
+  let fboCapH = 0;
   const QUAL = [
     { scale: 0.7, steps: 72, atmN: 7, shadow: 0, stepMin: 0.08, sky: 1024 },
     { scale: 1.0, steps: 104, atmN: 10, shadow: 1, stepMin: 0.065, sky: 1024 },
@@ -245,7 +251,7 @@
   function resize() {
     // Render at a capped device-pixel ratio for sharper output on HiDPI screens.
     // The adaptive render scale below backs off automatically when the GPU is busy.
-    const dpr = min(window.devicePixelRatio || 1, 1.5);
+    const dpr = min(window.devicePixelRatio || 1, 1.5, MAX_RENDER_W / max(innerWidth, 1), MAX_RENDER_H / max(innerHeight, 1));
     const w = max(2, floor(innerWidth * dpr));
     const h = max(2, floor(innerHeight * dpr));
     if (cv.width !== w || cv.height !== h) {
@@ -260,11 +266,15 @@
       ov.width = ow;
       ov.height = oh;
     }
-    if (fboW !== w || fboH !== h) {
+    const capW = min(MAX_RENDER_W, max(fboCapW, ceil(w * QUAL[qi].scale)));
+    const capH = min(MAX_RENDER_H, max(fboCapH, ceil(h * QUAL[qi].scale)));
+    if (fboW !== w || fboH !== h || fboCapW !== capW || fboCapH !== capH) {
       fboW = w;
       fboH = h;
+      fboCapW = capW;
+      fboCapH = capH;
       gl.bindTexture(gl.TEXTURE_2D, fboTex);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, fboCapW, fboCapH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     }
   }
 
@@ -936,8 +946,9 @@
   function render() {
     resize();
     pollTimer();
-    const w = max(2, floor(fboW * scale));
-    const h = max(2, floor(fboH * scale));
+    const renderScale = min(scale, fboCapW / fboW, fboCapH / fboH);
+    const w = min(fboCapW, max(2, floor(fboW * renderScale)));
+    const h = min(fboCapH, max(2, floor(fboH * renderScale)));
     gl.useProgram(P.p);
     setUniforms();
     updateBake();
