@@ -14,6 +14,7 @@
 <style>
 html{background:#04060c}
 body{position:fixed;inset:0;margin:0;overflow:hidden;background:radial-gradient(#141c33,#04060c 70%);font:600 clamp(13px,.7vw + .9vh,30px)/1.4 "Inter","Noto Sans KR",system-ui,sans-serif;color:#eef3ff;-webkit-user-select:none;user-select:none}
+html:lang(ko) body,html:lang(ko) button{font-family:"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif}
 canvas{position:absolute;inset:0;width:100%;height:100%}
 #c{touch-action:none;cursor:crosshair;transition:filter .8s,transform .8s,opacity .35s}
 #ov{pointer-events:none}
@@ -45,7 +46,7 @@ button:active{transform:translateY(.1em);filter:brightness(.9)}
 #k b{min-width:1em;padding:.12em .45em;border-radius:.35em;background:#eef3ff;box-shadow:inset 0 -.15em #0004;color:#1a1408;text-align:center;font-size:.92em}
 #lang{position:absolute;top:1em;right:1em;z-index:2;padding:.45em .8em;border-radius:.5em;background:#04060cb3;color:#eef3ff;font:700 .75em "Inter","Noto Sans KR",system-ui,sans-serif;letter-spacing:.02em}
 @media(max-height:34em){#k{display:none}}
-#i{position:absolute;top:1em;left:1.2em;margin:0;font:600 .78em/1.6 ui-monospace,"Noto Sans Mono CJK KR",Consolas,monospace;white-space:pre-wrap;text-shadow:0 1px 4px #000,0 0 2px #000;pointer-events:none;max-width:46em}
+#i{position:absolute;top:1em;left:1.2em;margin:0;font:600 .78em/1.6 "Inter","Noto Sans KR",system-ui,sans-serif;white-space:pre-wrap;text-shadow:0 1px 4px #000,0 0 2px #000;pointer-events:none;max-width:46em}
 #t{position:absolute;left:0;right:0;top:16%;text-align:center;font-size:1.5em;letter-spacing:.2em;text-shadow:0 2px 12px #000;opacity:0;transition:opacity .6s;pointer-events:none}
 #t.on{opacity:1}
 #t small{display:block;font-size:.5em;letter-spacing:.08em;font-weight:600;color:#ffd9a0}
