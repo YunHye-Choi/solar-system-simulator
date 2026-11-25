@@ -52,7 +52,7 @@ Then visit <http://localhost:8765>. Use the language button in the upper-right c
 
 Near a surface, terrain heights are baked into a set of 512×512 textures at multiple scales. Ray marching and shadows sample these textures, while procedural noise is evaluated for surface color and nearby detail. The textures are refreshed incrementally as the camera moves. Devices that cannot render to floating-point textures use a fallback path.
 
-Render resolution adjusts automatically based on GPU timing. Press **H** to show frame rate, GPU time, and the current resolution scale.
+The scene renders at up to 1.5× the display pixel ratio for sharper output on HiDPI screens. Render resolution adjusts automatically based on GPU timing to avoid overloading slower devices. The quality presets also control ray-marching and atmosphere detail. Press **H** to show frame rate, GPU time, and the current resolution scale.
 
 ## Modeling notes
 

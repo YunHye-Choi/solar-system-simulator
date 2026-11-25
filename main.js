@@ -229,9 +229,9 @@
   let fboW = 0;
   let fboH = 0;
   const QUAL = [
-    { scale: 0.5, steps: 56, atmN: 6, shadow: 0, stepMin: 0.085, sky: 1024 },
-    { scale: 0.75, steps: 84, atmN: 8, shadow: 1, stepMin: 0.07, sky: 1024 },
-    { scale: 1.0, steps: 120, atmN: 12, shadow: 1, stepMin: 0.055, sky: 2048 },
+    { scale: 0.65, steps: 72, atmN: 7, shadow: 0, stepMin: 0.08, sky: 1024 },
+    { scale: 0.9, steps: 104, atmN: 10, shadow: 1, stepMin: 0.065, sky: 1024 },
+    { scale: 1.2, steps: 144, atmN: 14, shadow: 1, stepMin: 0.05, sky: 2048 },
   ];
   let qi = 1;
   try {
@@ -243,13 +243,22 @@
   let scale = QUAL[qi].scale;
 
   function resize() {
-    const w = max(2, floor(innerWidth));
-    const h = max(2, floor(innerHeight));
+    // Render at a capped device-pixel ratio for sharper output on HiDPI screens.
+    // The adaptive render scale below backs off automatically when the GPU is busy.
+    const dpr = min(window.devicePixelRatio || 1, 1.5);
+    const w = max(2, floor(innerWidth * dpr));
+    const h = max(2, floor(innerHeight * dpr));
     if (cv.width !== w || cv.height !== h) {
       cv.width = w;
       cv.height = h;
-      $('ov').width = w;
-      $('ov').height = h;
+    }
+    // Keep labels and HUD in CSS pixels so their size does not shrink on HiDPI screens.
+    const ov = $('ov');
+    const ow = max(2, floor(innerWidth));
+    const oh = max(2, floor(innerHeight));
+    if (ov.width !== ow || ov.height !== oh) {
+      ov.width = ow;
+      ov.height = oh;
     }
     if (fboW !== w || fboH !== h) {
       fboW = w;
@@ -362,6 +371,7 @@
     site: '',
   };
   const keys = {};
+  let suppressWUntilRelease = false;
   let mouseX = 0;
   let mouseY = 0;
   let simT = Date.now();
@@ -536,12 +546,41 @@
     if (there) {
       title('도착', `${B[d.i].name}${d.name ? ' · ' + d.name : ''}`);
       nav.dest = null;
+      keys.KeyW = false;
+      suppressWUntilRelease = true;
+      if (pl.mode === 'walk') pl.v = [0, 0, 0];
     }
+  }
+
+  // Find the first body sphere crossed by a movement step. Frame-to-frame point
+  // collision misses a planet whenever a fast step jumps from one side to the other.
+  function sweptBodyHit(start, end) {
+    const delta = sub(end, start);
+    const a = dot(delta, delta);
+    if (a < 1) return null;
+    let first = null;
+    for (let i = 0; i < NB; i++) {
+      const offset = sub(start, B[i].pos);
+      const radius = B[i].R + B[i].hmax + EYE;
+      const c = dot(offset, offset) - radius * radius;
+      if (c <= 0) continue; // already near/on this body's surface
+      const closestT = clamp(-dot(offset, delta) / a, 0, 1);
+      const closest = add(offset, mul(delta, closestT));
+      const gap = radius * radius - dot(closest, closest);
+      if (gap < 0) continue;
+      const t = closestT - sqrt(gap / a);
+      if (t < 0 || t > 1 || (first && t >= first.t)) continue;
+      const hitWorld = add(start, mul(delta, t));
+      const normal = norm(toB(i, norm(sub(hitWorld, B[i].pos))));
+      first = { i, t, normal };
+    }
+    return first;
   }
 
   function step(dt) {
     simT += dt * 1000 * RATES[rateI];
     updateBodies(simT);
+    const stepStart = worldPos();
     const b = pl.frame >= 0 ? B[pl.frame] : null;
     let up;
     if (b) {
@@ -645,6 +684,21 @@
         } else {
           st.altG = r - b.R;
         }
+      }
+    }
+    // Stop at the first surface crossed, even if this frame's movement was very fast.
+    const hit = sweptBodyHit(stepStart, worldPos());
+    if (hit) {
+      const isDestination = nav.dest && nav.dest.i === hit.i;
+      const landingNormal = isDestination && nav.dest.n ? nav.dest.n : hit.normal;
+      const landingName = isDestination ? nav.dest.name : '';
+      landAt(hit.i, landingNormal, landingName);
+      st.altG = EYE;
+      if (isDestination) {
+        title('도착', `${B[hit.i].name}${landingName ? ' · ' + landingName : ''}`);
+        nav.dest = null;
+        keys.KeyW = false;
+        suppressWUntilRelease = true;
       }
     }
     // keep inside the heliosphere
@@ -1375,6 +1429,7 @@
     document.body.className = on ? 'g' : 'm';
     if (!on) {
       for (const k of Object.keys(keys)) keys[k] = false;
+      suppressWUntilRelease = false;
       updateSound();
     }
   }
@@ -1393,6 +1448,7 @@
     }
     // Browser shortcuts (Ctrl+R, Cmd+...) are not game input; macOS also drops their keyup.
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code === 'KeyW' && suppressWUntilRelease) return;
     if (e.code === 'Tab' || e.code === 'Space' || e.code === 'Backquote') e.preventDefault();
     keys[e.code] = true;
     if (e.repeat) return;
@@ -1431,9 +1487,11 @@
   });
   addEventListener('keyup', (e) => {
     keys[e.code] = false;
+    if (e.code === 'KeyW') suppressWUntilRelease = false;
   });
   addEventListener('blur', () => {
     for (const k of Object.keys(keys)) keys[k] = false;
+    suppressWUntilRelease = false;
   });
   addEventListener('mousemove', (e) => {
     if (running && document.pointerLockElement === cv) {
