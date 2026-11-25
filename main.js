@@ -229,11 +229,11 @@
   let fboW = 0;
   let fboH = 0;
   const QUAL = [
-    { scale: 0.65, steps: 72, atmN: 7, shadow: 0, stepMin: 0.08, sky: 1024 },
-    { scale: 0.9, steps: 104, atmN: 10, shadow: 1, stepMin: 0.065, sky: 1024 },
-    { scale: 1.2, steps: 144, atmN: 14, shadow: 1, stepMin: 0.05, sky: 2048 },
+    { scale: 0.7, steps: 72, atmN: 7, shadow: 0, stepMin: 0.08, sky: 1024 },
+    { scale: 1.0, steps: 104, atmN: 10, shadow: 1, stepMin: 0.065, sky: 1024 },
+    { scale: 1.55, steps: 152, atmN: 14, shadow: 1, stepMin: 0.05, sky: 2048 },
   ];
-  let qi = 1;
+  let qi = 2;
   try {
     const v = localStorage.solarDetail;
     if (v !== undefined && v !== '') qi = clamp(+v | 0, 0, 2);
@@ -1026,7 +1026,7 @@
     g.addColorStop(1, 'rgba(255,240,200,0)');
     x.fillStyle = g;
     x.fillRect(120, 120, 80, 80);
-    x.font = '600 10px system-ui,sans-serif';
+    x.font = '600 10px "Nunito","Noto Sans KR",sans-serif';
     x.fillStyle = '#9fb4dd';
     [['페르세우스 팔', 208, 250], ['궁수자리 팔', 186, 205], ['방패–센타우루스 팔', 40, 150], ['직각자자리 팔', 70, 70], ['은하 중심', 168, 150]].forEach(([s, px, py]) => x.fillText(s, px, py));
     // Sun: about 8.2 kpc (26,700 light years) from the centre, on the Orion spur.
@@ -1087,7 +1087,7 @@
     const F = st.focus;
     const fb = B[F];
     if (showLabels) {
-      ctx.font = '600 12px system-ui,"Noto Sans KR",sans-serif';
+      ctx.font = '600 12px "Nunito","Noto Sans KR",sans-serif';
       ctx.textBaseline = 'middle';
       for (let i = 0; i < NB; i++) {
         const rel = cam.rel[i];
@@ -1110,7 +1110,7 @@
       const dark = a.top <= 0 || st.altR > a.top * 0.6 || st.sunElev < -0.1 || F === 9;
       if (dark && F !== 0) {
         ctx.fillStyle = 'rgba(170,195,255,.8)';
-        ctx.font = '500 11px system-ui,"Noto Sans KR",sans-serif';
+        ctx.font = '500 11px "Nunito","Noto Sans KR",sans-serif';
         for (const [d, name] of starDirs) {
           if (hiddenByFocus(d, Infinity)) continue;
           const p = project(d);
@@ -1134,7 +1134,7 @@
     ctx.strokeStyle = '#6cf0ff';
     ctx.fillStyle = '#6cf0ff';
     ctx.lineWidth = 2;
-    ctx.font = '700 13px system-ui,"Noto Sans KR",sans-serif';
+    ctx.font = '700 13px "Nunito","Noto Sans KR",sans-serif';
     ctx.textBaseline = 'middle';
     const label = `${b.name}${d.name ? ' · ' + d.name : ''}  ${fmtDist(dist)}`;
     if (p) {
@@ -1182,10 +1182,10 @@
     ctx.lineWidth = 1;
     ctx.strokeRect(x0 + 0.5, y0 + 0.5, W, H);
     ctx.textBaseline = 'middle';
-    ctx.font = '700 14px system-ui,"Noto Sans KR",sans-serif';
+    ctx.font = '700 14px "Nunito","Noto Sans KR",sans-serif';
     ctx.fillStyle = '#6cf0ff';
     ctx.fillText('내비게이션 · 목적지 선택', x0 + 14, y0 + 20);
-    ctx.font = '600 13px system-ui,"Noto Sans KR",sans-serif';
+    ctx.font = '600 13px "Nunito","Noto Sans KR",sans-serif';
     rows.forEach(([key, i], r) => {
       const y = y0 + 20 + lh * (r + 1.3);
       const on = nav.dest && nav.dest.i === i;
@@ -1213,7 +1213,7 @@
     ctx.strokeStyle = 'rgba(255,217,160,.6)';
     ctx.lineWidth = 1;
     ctx.strokeRect(x0 - 6.5, y0 - 6.5, W + 13, H + 35);
-    ctx.font = '600 12px system-ui,"Noto Sans KR",sans-serif';
+    ctx.font = '600 12px "Nunito","Noto Sans KR",sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffe6bf';
     const head = cam.F;
@@ -1264,7 +1264,7 @@
       ctx.arc(cx, cy, rp(LIMIT), 0, 2 * PI);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.font = '500 10px system-ui,"Noto Sans KR",sans-serif';
+      ctx.font = '500 10px "Nunito","Noto Sans KR",sans-serif';
       for (let i = 0; i < 10; i++) {
         const [px, py] = pt(B[i].pos);
         ctx.fillStyle = `rgb(${B[i].col.map((c) => Math.round(c * 255)).join(',')})`;
@@ -1290,7 +1290,7 @@
       ctx.fill();
       ctx.stroke();
       ctx.restore();
-      ctx.font = '600 12px system-ui,"Noto Sans KR",sans-serif';
+      ctx.font = '600 12px "Nunito","Noto Sans KR",sans-serif';
       ctx.fillStyle = '#ffe6bf';
       ctx.fillText(`태양계 (로그 축척) · 태양까지 ${fmtDist(len(st.wp))}`, x0, y0 + H + 14);
     } else {
@@ -1412,8 +1412,8 @@
       if (tq.fresh) {
         tq.fresh = false;
         stats.gpu = stats.gpu ? stats.gpu * 0.7 + tq.ms * 0.3 : tq.ms;
-        if (stats.gpu > 15) scale = max(0.3, scale * clamp(sqrt(12 / stats.gpu), 0.7, 0.97));
-        else if (stats.gpu < 9 && scale < top) scale = min(top, scale * 1.04);
+        if (stats.gpu > 18) scale = max(0.35, scale * clamp(sqrt(14 / stats.gpu), 0.7, 0.97));
+        else if (stats.gpu < 11 && scale < top) scale = min(top, scale * 1.04);
       }
     } else if (++stats.n >= 10) {
       stats.n = 0;
