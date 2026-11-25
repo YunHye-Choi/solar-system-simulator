@@ -35,7 +35,9 @@ Then visit <http://localhost:8765>. Use the language button in the upper-right c
 | L | Toggle body and star labels |
 | [ / ] | Decrease / increase time speed |
 | P / R | Pause time / reset to the current time |
-| V / H / Esc | Toggle sound / information / menu |
+| V | Toggle sound effects |
+| J | Toggle ambient background music |
+| H / Esc | Toggle information / menu |
 
 ## Project files
 

@@ -1352,6 +1352,86 @@
 
   // ------------------------------------------------------------ sound: wind scaled by air density
   const snd = { ctx: null, gain: null, on: true };
+  let musicOn = true;
+  try {
+    musicOn = localStorage.solarMusic !== '0';
+  } catch {
+    /* storage unavailable: keep music enabled */
+  }
+  const music = { gain: null, voices: [], filter: null, chord: 0, note: 0, timers: [] };
+  const MUSIC_CHORDS = [
+    { root: 45, third: 15 }, // A minor
+    { root: 41, third: 16 }, // F major
+    { root: 48, third: 16 }, // C major
+    { root: 43, third: 14 }, // G suspended
+  ];
+  const MUSIC_NOTES = [57, 60, 64, 67, 69, 72, 76, 72, 69, 67, 64, 60, 62, 67, 71, 74];
+  function midiHz(note) {
+    return 440 * pow(2, (note - 69) / 12);
+  }
+  function playMusicChord(ac) {
+    const chord = MUSIC_CHORDS[music.chord++ % MUSIC_CHORDS.length];
+    const notes = [chord.root, chord.root + 7, chord.root + 12, chord.root + chord.third, chord.root + 19];
+    const t = ac.currentTime;
+    music.voices.forEach((o, i) => o.frequency.setTargetAtTime(midiHz(notes[i]), t, 3.5));
+  }
+  function playMusicNote(ac) {
+    const osc = ac.createOscillator();
+    const env = ac.createGain();
+    const t = ac.currentTime;
+    osc.type = 'sine';
+    osc.frequency.value = midiHz(MUSIC_NOTES[music.note++ % MUSIC_NOTES.length]);
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.exponentialRampToValueAtTime(0.018, t + 0.12);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 3.8);
+    osc.connect(env).connect(music.filter);
+    osc.start(t);
+    osc.stop(t + 4);
+  }
+  function initMusic(ac) {
+    const filter = ac.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1700;
+    filter.Q.value = 0.35;
+    const g = ac.createGain();
+    g.gain.value = 0;
+    const send = ac.createGain();
+    send.gain.value = 0.2;
+    const delay = ac.createDelay(2);
+    delay.delayTime.value = 0.72;
+    const feedback = ac.createGain();
+    feedback.gain.value = 0.22;
+    const damp = ac.createBiquadFilter();
+    damp.type = 'lowpass';
+    damp.frequency.value = 1100;
+    const wet = ac.createGain();
+    wet.gain.value = 0.14;
+    filter.connect(g);
+    filter.connect(send).connect(delay);
+    delay.connect(wet).connect(g);
+    delay.connect(feedback).connect(damp).connect(delay);
+    g.connect(ac.destination);
+    music.filter = filter;
+    music.gain = g;
+    const notes = [45, 52, 57, 60, 64];
+    music.voices = notes.map((note, i) => {
+      const osc = ac.createOscillator();
+      osc.type = i === 0 ? 'sine' : 'triangle';
+      osc.detune.value = (i - 2) * 2;
+      osc.frequency.value = midiHz(note);
+      osc.connect(filter);
+      osc.start();
+      return osc;
+    });
+    music.timers.push(setInterval(() => playMusicChord(ac), 16000));
+    music.timers.push(setInterval(() => playMusicNote(ac), 4200));
+    playMusicChord(ac);
+    playMusicNote(ac);
+  }
+  function updateMusic() {
+    if (!music.gain || !snd.ctx) return;
+    music.gain.gain.setTargetAtTime(musicOn && running ? 0.12 : 0, snd.ctx.currentTime, 1.2);
+  }
   function initSound() {
     if (snd.ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -1376,6 +1456,8 @@
     src.start();
     snd.ctx = ac;
     snd.gain = g;
+    initMusic(ac);
+    updateMusic();
   }
   function updateSound() {
     if (!snd.gain) return;
@@ -1432,6 +1514,7 @@
       suppressWUntilRelease = false;
       updateSound();
     }
+    updateMusic();
   }
   function start() {
     if (!ready) return;
@@ -1471,6 +1554,15 @@
         stats.on = false;
       }
     } else if (e.code === 'KeyV') snd.on = !snd.on;
+    else if (e.code === 'KeyJ') {
+      musicOn = !musicOn;
+      try {
+        localStorage.solarMusic = musicOn ? '1' : '0';
+      } catch {
+        /* storage unavailable: use the setting for this session */
+      }
+      updateMusic();
+    }
     else if (e.code === 'BracketRight') rateI = min(RATES.length - 1, rateI + 1);
     else if (e.code === 'BracketLeft') rateI = max(0, rateI - 1);
     else if (e.code === 'KeyP') rateI = rateI === 0 ? 1 : 0;
