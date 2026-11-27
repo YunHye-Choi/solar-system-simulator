@@ -54,7 +54,7 @@ Then visit <http://localhost:8765>. Use the language button in the upper-right c
 
 Near a surface, terrain heights are baked into a set of 512×512 textures at multiple scales. Ray marching and shadows sample these textures, while procedural noise is evaluated for surface color and nearby detail. The textures are refreshed incrementally as the camera moves. Devices that cannot render to floating-point textures use a fallback path.
 
-The scene uses the display pixel ratio (capped at 1.5×) and the High preset supersamples beyond it for a sharper image. High is the default; render resolution adjusts automatically based on GPU timing to avoid overloading slower devices. The presets also control ray-marching and atmosphere detail. The interface uses Inter and Noto Sans KR, with system-font fallbacks. Press **H** to show frame rate, GPU time, and the current resolution scale.
+The scene uses the display pixel ratio (capped at 1.5×); High renders at that native device resolution without supersampling the ray-marched scene. High is the default on desktop, while touch devices and low-memory systems start at a lighter preset. GPU timing includes terrain baking, scene rendering, and the final blit; render resolution adjusts automatically to keep frame times usable. The interface uses Inter and Noto Sans KR, with system-font fallbacks. Press **H** to show frame rate, GPU time, and the current resolution scale.
 
 ## Modeling notes
 

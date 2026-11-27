@@ -234,12 +234,15 @@
   let fboH = 0;
   let fboCapW = 0;
   let fboCapH = 0;
+  // Ray-marched shading is expensive per pixel, so High tops out at native device resolution.
   const QUAL = [
-    { scale: 0.7, steps: 72, atmN: 7, shadow: 0, stepMin: 0.08, sky: 1024 },
-    { scale: 1.0, steps: 104, atmN: 10, shadow: 1, stepMin: 0.065, sky: 1024 },
-    { scale: 1.55, steps: 152, atmN: 14, shadow: 1, stepMin: 0.05, sky: 2048 },
+    { scale: 0.65, steps: 56, atmN: 6, shadow: 0, stepMin: 0.085, sky: 1024 },
+    { scale: 0.82, steps: 84, atmN: 8, shadow: 1, stepMin: 0.07, sky: 1024 },
+    { scale: 1.0, steps: 120, atmN: 12, shadow: 1, stepMin: 0.055, sky: 2048 },
   ];
-  let qi = 2;
+  const touchDevice = matchMedia('(pointer: coarse)').matches;
+  const deviceMemory = Number(navigator.deviceMemory) || 0;
+  let qi = touchDevice ? (deviceMemory >= 8 ? 1 : 0) : deviceMemory > 0 && deviceMemory <= 4 ? 0 : 2;
   try {
     const v = localStorage.solarDetail;
     if (v !== undefined && v !== '') qi = clamp(+v | 0, 0, 2);
@@ -951,22 +954,23 @@
     const h = min(fboCapH, max(2, floor(fboH * renderScale)));
     gl.useProgram(P.p);
     setUniforms();
+    const timed = tq.ext && !tq.q;
+    if (timed) {
+      tq.q = gl.createQuery();
+      gl.beginQuery(tq.ext.TIME_ELAPSED_EXT, tq.q);
+    }
+    // Include the per-frame terrain bake in GPU timing, not only the final scene pass.
     updateBake();
     gl.uniform1i(P.u('uMode'), 0);
     gl.uniform2f(P.u('uRes'), w, h);
     gl.uniform1f(P.u('uPix'), (2 * TAN_F) / h);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.viewport(0, 0, w, h);
-    const timed = tq.ext && !tq.q;
-    if (timed) {
-      tq.q = gl.createQuery();
-      gl.beginQuery(tq.ext.TIME_ELAPSED_EXT, tq.q);
-    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    if (timed) gl.endQuery(tq.ext.TIME_ELAPSED_EXT);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.blitFramebuffer(0, 0, w, h, 0, 0, cv.width, cv.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+    if (timed) gl.endQuery(tq.ext.TIME_ELAPSED_EXT);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
@@ -1505,13 +1509,13 @@
       if (tq.fresh) {
         tq.fresh = false;
         stats.gpu = stats.gpu ? stats.gpu * 0.7 + tq.ms * 0.3 : tq.ms;
-        if (stats.gpu > 18) scale = max(0.35, scale * clamp(sqrt(14 / stats.gpu), 0.7, 0.97));
-        else if (stats.gpu < 11 && scale < top) scale = min(top, scale * 1.04);
+        if (stats.gpu > 16) scale = max(0.35, scale * clamp(sqrt(13.5 / stats.gpu), 0.7, 0.97));
+        else if (stats.gpu < 11.5 && scale < top) scale = min(top, scale * 1.04);
       }
     } else if (++stats.n >= 10) {
       stats.n = 0;
-      if (stats.ms > 24) scale = max(0.35, scale * clamp(sqrt(20 / stats.ms), 0.6, 0.95));
-      else if (stats.ms < 18 && scale < top) scale = min(top, scale * 1.07);
+      if (stats.ms > 22) scale = max(0.35, scale * clamp(sqrt(17 / stats.ms), 0.6, 0.95));
+      else if (stats.ms < 18.5 && scale < top) scale = min(top, scale * 1.07);
     }
   }
 
