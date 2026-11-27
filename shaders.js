@@ -396,7 +396,7 @@ void main(){
   float t=0.,tp=0.,hl=0.,ta=0.,tb=0.,tS=-1.; int ms=0,kb=0,kn=0,ks=0;
   bool shell=false,surf=false,water=false;
   vec3 p=vec3(0.),upL=uUp,t1=vec3(1.,0.,0.),t2=vec3(0.,0.,1.),nr=uUp,alb=vec3(0.),ps=vec3(0.),Ts=vec3(1.);
-  float e=1.,h0=0.,h1=0.,h2v=0.,sl=0.,sp=0.,sh=1.,ts=0.,cz=1.,ndl=0.,altP=0.,dpv=max(uClr,1.),h0t=0.,hC=0.,hrC=0.,gx=0.,gy=0.; int omN=0; bool texN=false,mic=false; vec3 nC=uCamN;
+  float e=1.,h0=0.,h1=0.,h2v=0.,sl=0.,sp=0.,sh=1.,ts=0.,cz=1.,ndl=0.,altP=0.,dpv=max(uClr,1.),h0t=0.,hC=0.,hrC=0.,gx=0.,gy=0.,lodFoot=0.; int omN=0; bool texN=false,mic=false; vec3 nC=uCamN;
 
   if(uMode>=1){ stt=6; }
   else {
@@ -432,6 +432,7 @@ void main(){
 
   int maxIt=uSteps+40;
   for(int it=0;it<maxIt;it++){
+    lodFoot=0.;
     if(stt==7){
       if(tS>0.&&tS<tOpq){
         surf=true; p=rd*tS; upL=normalize(uUp*uR0+p); cz=dot(upL,sd);
@@ -460,7 +461,7 @@ void main(){
       } else { tS=-1.; stt=hit>=0?4:5; }
     }
     if(stt==5) break;
-    int eid=id; int eo=0; vec3 nE=uCamN; float ndvE=1.,dispE=max(uDisp,1e-3),slE=0.,lodFoot=0.;
+    int eid=id; int eo=0; vec3 nE=uCamN; float ndvE=1.,dispE=max(uDisp,1e-3),slE=0.;
     vec3 qE=vec3(0.); float ft=0.; bool pre=false;
     gAbs=false;
     if(stt==0){
