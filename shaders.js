@@ -383,7 +383,18 @@ bool hmap(vec3 q,float foot,out float h){
     if(vc){ h=hc; return true; }
   }
   if(vf){ h=hf; return true; }
-  return hsample(uv,coarse,h);
+  float hfallback=0.;
+  if(hsample(uv,coarse,hfallback)){ h=hfallback; return true; }
+  // A newly focused body is baked from coarse to fine over several frames.
+  // Keep using any ready coarser level instead of evaluating full terrain noise
+  // at every ray-march step while those levels are being prepared.
+  for(int d=1;d<8;d++){
+    int farther=coarse+d;
+    if(farther<8&&hsample(uv,farther,hfallback)){ h=hfallback; return true; }
+    int nearer=fine-d;
+    if(nearer>=0&&hsample(uv,nearer,hfallback)){ h=hfallback; return true; }
+  }
+  return false;
 }
 float chap(float X,float h,float c){
   float cc=sqrt(X+h);

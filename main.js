@@ -262,6 +262,7 @@
   let fboH = 0;
   let fboCapW = 0;
   let fboCapH = 0;
+  let renderFocus = -1;
   // Ray-marched shading is expensive per pixel, so High tops out at native device resolution.
   const QUAL = [
     { scale: 0.65, steps: 56, atmN: 6, shadow: 0, stepMin: 0.085, sky: 1024 },
@@ -278,6 +279,8 @@
     /* storage unavailable: keep default */
   }
   let scale = QUAL[qi].scale;
+  let adaptiveSteps = 1;
+  let adaptiveShadow = true;
 
   function resize() {
     // Render at a capped device-pixel ratio for sharper output on HiDPI screens.
@@ -874,9 +877,11 @@
     gl.uniform3fv(P.u('uC0'), bake.c0);
     const u = dot(n, bake.e1) * b.R;
     const v = dot(n, bake.e2) * b.R;
+    const bakeFine = qi > 0 && (tq.ext ? tq.ms < 18 : stats.ms < 18);
     for (let k = BS.length - 1; k >= 0; k--) {
       const L = bake.lv[k];
       const s = BS[k];
+      if (k < 2 && !bakeFine) continue; // defer the two costly metre-scale layers under load
       if (s * 600 < st.altG) continue; // finer than this altitude can show
       if (!L.valid || max(abs(u - L.cu), abs(v - L.cv)) > (s * BN) / 4) {
         bakeLevel(k, u, v, b.R);
@@ -936,9 +941,9 @@
     gl.uniform1f(u('uGlare'), clamp(pow(max(len(wp) / AU, 0.05), -0.7), 0.04, 3));
     gl.uniform1f(u('uSunVis'), sunVis);
     gl.uniform1i(u('uF'), F);
-    gl.uniform1i(u('uSteps'), q.steps);
+    gl.uniform1i(u('uSteps'), max(36, floor(q.steps * adaptiveSteps)));
     gl.uniform1i(u('uAtmN'), q.atmN);
-    gl.uniform1i(u('uShadow'), q.shadow);
+    gl.uniform1i(u('uShadow'), q.shadow && adaptiveShadow ? 1 : 0);
     gl.uniform1f(u('uStepMin'), q.stepMin);
     gl.uniformMatrix3fv(u('uFM'), false, fBM.subarray(F * 9, F * 9 + 9));
     gl.uniform1f(u('uAlt'), altR);
@@ -982,11 +987,19 @@
   function render() {
     resize();
     pollTimer();
+    gl.useProgram(P.p);
+    setUniforms();
+    // Entering a new body's terrain invalidates its local height cache. Start
+    // cheaper for that first frame, then let the GPU timer restore detail safely.
+    if (renderFocus !== st.focus) {
+      renderFocus = st.focus;
+      scale = min(scale, max(0.28, QUAL[qi].scale * 0.5));
+      adaptiveSteps = min(adaptiveSteps, 0.65);
+      adaptiveShadow = false;
+    }
     const renderScale = min(scale, fboCapW / fboW, fboCapH / fboH);
     const w = min(fboCapW, max(2, floor(fboW * renderScale)));
     const h = min(fboCapH, max(2, floor(fboH * renderScale)));
-    gl.useProgram(P.p);
-    setUniforms();
     const timed = tq.ext && !tq.q;
     if (timed) {
       tq.q = gl.createQuery();
@@ -1548,8 +1561,15 @@
       if (tq.fresh) {
         tq.fresh = false;
         stats.gpu = stats.gpu ? stats.gpu * 0.7 + tq.ms * 0.3 : tq.ms;
-        if (stats.gpu > 16) scale = max(0.35, scale * clamp(sqrt(13.5 / stats.gpu), 0.7, 0.97));
-        else if (stats.gpu < 11.5 && scale < top) scale = min(top, scale * 1.04);
+        if (stats.gpu > 16) {
+          scale = max(0.28, scale * clamp(sqrt(13.5 / stats.gpu), 0.45, 0.97));
+          if (stats.gpu > 22) adaptiveSteps = max(0.3, adaptiveSteps * 0.75);
+          if (stats.gpu > 28 && adaptiveSteps <= 0.35) adaptiveShadow = false;
+        } else if (stats.gpu < 15.5) {
+          if (scale < top) scale = min(top, scale * 1.04);
+          else if (adaptiveSteps < 1) adaptiveSteps = min(1, adaptiveSteps + 0.05);
+          else if (!adaptiveShadow) adaptiveShadow = true;
+        }
       }
     } else if (++stats.n >= 10) {
       stats.n = 0;
