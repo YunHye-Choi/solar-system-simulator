@@ -2,6 +2,36 @@
 window.SHADER_VS = `#version 300 es
 void main(){ vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2)); gl_Position=vec4(p*2.-1.,0.,1.); }`;
 
+// A compact FXAA resolve pass smooths terrain silhouettes without rendering the
+// expensive ray-marched scene above the device's native pixel count.
+window.SHADER_FXAA = `#version 300 es
+precision highp float;
+uniform sampler2D uScene;
+uniform vec2 uInvRes;
+uniform vec2 uOutRes;
+uniform vec2 uSrcScale;
+out vec4 oCol;
+float lum(vec3 c){ return dot(c,vec3(.299,.587,.114)); }
+void main(){
+  vec2 uv=gl_FragCoord.xy/uOutRes*uSrcScale;
+  vec3 m=texture(uScene,uv).rgb;
+  vec3 nw=texture(uScene,uv+vec2(-1.,-1.)*uInvRes).rgb;
+  vec3 ne=texture(uScene,uv+vec2( 1.,-1.)*uInvRes).rgb;
+  vec3 sw=texture(uScene,uv+vec2(-1., 1.)*uInvRes).rgb;
+  vec3 se=texture(uScene,uv+vec2( 1., 1.)*uInvRes).rgb;
+  float lm=lum(m), lnw=lum(nw), lne=lum(ne), lsw=lum(sw), lse=lum(se);
+  float lo=min(lm,min(min(lnw,lne),min(lsw,lse)));
+  float hi=max(lm,max(max(lnw,lne),max(lsw,lse)));
+  vec2 dir=vec2(-((lnw+lne)-(lsw+lse)),(lnw+lsw)-(lne+lse));
+  float reduce=max((lnw+lne+lsw+lse)*.03125,.0078125);
+  float rcp=1./(min(abs(dir.x),abs(dir.y))+reduce);
+  dir=clamp(dir*rcp,vec2(-8.),vec2(8.))*uInvRes;
+  vec3 a=.5*(texture(uScene,uv+dir*(1./3.-.5)).rgb+texture(uScene,uv+dir*(2./3.-.5)).rgb);
+  vec3 b=a*.5+.25*(texture(uScene,uv+dir*-.5).rgb+texture(uScene,uv+dir*.5).rgb);
+  float lb=lum(b);
+  oCol=vec4((lb<lo||lb>hi)?a:b,1.);
+}`;
+
 // ---------------------------------------------------------------- sky cube map
 // Rendered once per face. World frame is ecliptic with +Y = ecliptic north.
 window.SHADER_SKY = `#version 300 es

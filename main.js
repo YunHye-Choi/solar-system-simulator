@@ -226,6 +226,7 @@
   }
 
   let P; // main program
+  let FX; // edge-aware resolve for smoother silhouettes
   let fbo;
   let fboTex;
   let mapFbo;
@@ -341,6 +342,9 @@
     gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky);
 
     P = program(expandCaps(window.SHADER_MAIN(TERRAIN_GLSL)));
+    FX = program(window.SHADER_FXAA);
+    gl.useProgram(FX.p);
+    gl.uniform1i(FX.u('uScene'), 2);
     gl.useProgram(P.p);
     gl.uniform1i(P.u('uSky'), 0);
     gl.uniform1i(P.u('uEarth'), 1);
@@ -967,9 +971,15 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.viewport(0, 0, w, h);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo);
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-    gl.blitFramebuffer(0, 0, w, h, 0, 0, cv.width, cv.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, cv.width, cv.height);
+    gl.useProgram(FX.p);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, fboTex);
+    gl.uniform2f(FX.u('uInvRes'), 1 / fboCapW, 1 / fboCapH);
+    gl.uniform2f(FX.u('uOutRes'), cv.width, cv.height);
+    gl.uniform2f(FX.u('uSrcScale'), w / fboCapW, h / fboCapH);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
     if (timed) gl.endQuery(tq.ext.TIME_ELAPSED_EXT);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
