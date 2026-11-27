@@ -446,7 +446,7 @@ void main(){
           if(uBake>0&&fp>=3.){
             float E=max(8.,fp*2.),a0,a1,a2;
             if(hmap(p,E*.5,a0)&&hmap(p+t1*E,E*.5,a1)&&hmap(p+t2*E,E*.5,a2)){
-              h0t=a0*uDisp; h1=a1*uDisp; h2v=a2*uDisp; e=E; kn=2; texN=true; omN=omOf(tS,3.);
+              h0t=a0*uDisp; h1=a1*uDisp; h2v=a2*uDisp; e=E; kn=2; texN=true; omN=omOf(tS,3.); lodFoot=tS*uPix*3.;
             }
           } else if(uBake>0){
             // Near: broad slope from the baked heights, fine relief (octaves 25+) from two partial
@@ -460,7 +460,7 @@ void main(){
       } else { tS=-1.; stt=hit>=0?4:5; }
     }
     if(stt==5) break;
-    int eid=id; int eo=0; vec3 nE=uCamN; float ndvE=1.,dispE=max(uDisp,1e-3),slE=0.;
+    int eid=id; int eo=0; vec3 nE=uCamN; float ndvE=1.,dispE=max(uDisp,1e-3),slE=0.,lodFoot=0.;
     vec3 qE=vec3(0.); float ft=0.; bool pre=false;
     gAbs=false;
     if(stt==0){
@@ -471,20 +471,20 @@ void main(){
         stt=7; continue;
       }
       if(altOf(qE)>uHmax*1.02+1.&&dot(rd,uUp*uR0+qE)>0.){ tS=-1.; stt=7; continue; }
-      eo=min(min(omOf(t,30.),24),int(floor(30.-log2(max(dpv,.5))))); ft=t*uPix*2.;
+      eo=min(min(omOf(t,30.),24),int(floor(30.-log2(max(dpv,.5))))); ft=t*uPix*2.; lodFoot=t*uPix*30.;
     } else if(stt==1){
-      float tm=.5*(ta+tb); qE=rd*tm; eo=min(omOf(tm,30.),24); ft=tm*uPix*2.;
+      float tm=.5*(ta+tb); qE=rd*tm; eo=min(omOf(tm,30.),24); ft=tm*uPix*2.; lodFoot=tm*uPix*30.;
     } else if(stt==2){
       if(mic) qE=kn==0?p:(kn==1?p+t1*e:p+t2*e); else qE=kn==0?p+t1*e:(kn==1?p+t2*e:p);
-      eo=omN;
+      eo=omN; lodFoot=tS*uPix*2.5;
     } else if(stt==3){
       qE=ps+sd*ts;
       if(altOf(qE)>uHmax||ks>=12){ stt=5; continue; }
-      eo=min(min(omOf(tS+ts,40.),22),int(floor(30.-log2(max(dpv,.5))))); ft=(tS+ts)*uPix*3.;
+      eo=min(min(omOf(tS+ts,40.),22),int(floor(30.-log2(max(dpv,.5))))); ft=(tS+ts)*uPix*3.; lodFoot=(tS+ts)*uPix*40.;
     } else if(stt==4){
       eid=hit; vec3 nw=normalize(rd*tOpq-uBP[hit].xyz); nE=nw*uBM[hit];
       gAbs=true; gQ=nE*uBP[hit].w; ndvE=max(dot(nw,-rd),0.); dispE=1.;
-      eo=clamp(int(floor(28.-log2(max(tOpq*uPix,1.)))),0,18);
+      eo=clamp(int(floor(28.-log2(max(tOpq*uPix,1.)))),0,18); lodFoot=tOpq*uPix*2.;
     } else if(uMode==2){
       // bake one height level: texel -> direction, noise offset taken relative to the level centre
       vec2 uvb=uBk.xy+(gl_FragCoord.xy-256.)*uBk.z;
@@ -508,6 +508,11 @@ void main(){
       bool part=mic&&stt==2&&kn>0;
       if(part) nE=nC;
       gLo=part?25:0;
+      gFade=1.;
+      if(lodFoot>0.){
+        float lod=29.-log2(max(lodFoot,.125));
+        if(float(eo)>=floor(lod)) gFade=smoothstep(0.,1.,fract(lod));
+      }
       hr=terrain(eid,nE.x,nE.y,nE.z,eo);
       gLo=0;
     }

@@ -6,6 +6,8 @@
 // CAP(lat, lonEast, radiusDeg) expands to an angular distance in units of the radius.
 window.TERRAIN_SRC = `
 float gA,gB,gC,gD,gE0,gE1,gE2;
+// Fade the finest visible octave across its pixel-footprint transition to avoid LOD popping.
+float gFade=1.;
 // Octaves below gLo keep their previous samples (used to re-evaluate only the fine detail nearby).
 int gLo=0;
 float gN[32];
@@ -24,21 +26,21 @@ float cap(float x,float y,float z,float cx,float cy,float cz,float ir){
 }
 float fb(int o0,int n,int om){
   float s=0.; float a=.5;
-  for(int k=0;k<n;k++){ int o=o0+k; if(o>om) break; s+=a*(gN[o]*2.-1.); a*=.5; }
+  for(int k=0;k<n;k++){ int o=o0+k; if(o>om) break; s+=a*(gN[o]*2.-1.)*(o==om?gFade:1.); a*=.5; }
   return s;
 }
 float rg(int o0,int n,int om){
   float s=0.; float a=.5; float w=1.;
-  for(int k=0;k<n;k++){ int o=o0+k; if(o>om) break; float v=1.-abs(gN[o]*2.-1.); v=v*v; s+=a*v*w; w=clamp(v*1.5,0.,1.); a*=.5; }
+  for(int k=0;k<n;k++){ int o=o0+k; if(o>om) break; float v=1.-abs(gN[o]*2.-1.); v=v*v; s+=a*v*w*(o==om?gFade:1.); w=clamp(v*1.5,0.,1.); a*=.5; }
   return s;
 }
 float crs(int o0,int o1,int om){
   float s=0.;
-  for(int o=o0;o<=o1;o++){ if(o>om) break; s+=gC2[o]*OL(o); }
+  for(int o=o0;o<=o1;o++){ if(o>om) break; s+=gC2[o]*OL(o)*(o==om?gFade:1.); }
   return s;
 }
 // Octave sample that is neutral when the level of detail has not reached it.
-float gv(int o,int om){ float v=.5; if(o<=om){ v=gN[o]; } return v; }
+float gv(int o,int om){ float v=.5; if(o<om){ v=gN[o]; } else if(o==om){ v=mix(.5,gN[o],gFade); } return v; }
 // 1 along the octave's mid line, 0 away from it: thin winding features (valleys, rilles, dune crests).
 float rdg(int o,int om){ return 1.-abs(gv(o,om)*2.-1.); }
 float bigc(float t,float D){
