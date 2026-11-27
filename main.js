@@ -225,6 +225,33 @@
     return { p, u: (n) => (n in cache ? cache[n] : (cache[n] = gl.getUniformLocation(p, n))) };
   }
 
+  async function programAsync(fsSrc) {
+    const ext = gl.getExtension('KHR_parallel_shader_compile');
+    const mk = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
+    const vs = mk(gl.VERTEX_SHADER, window.SHADER_VS);
+    const fs = mk(gl.FRAGMENT_SHADER, fsSrc);
+    const p = gl.createProgram();
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    if (ext) {
+      await new Promise((resolve) => {
+        const poll = () => gl.getProgramParameter(p, ext.COMPLETION_STATUS_KHR) ? resolve() : requestAnimationFrame(poll);
+        poll();
+      });
+    }
+    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) fail('셰이더 컴파일 오류:\n' + gl.getShaderInfoLog(vs));
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) fail('셰이더 컴파일 오류:\n' + gl.getShaderInfoLog(fs));
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) fail('셰이더 링크 오류:\n' + gl.getProgramInfoLog(p));
+    const cache = {};
+    return { p, u: (n) => (n in cache ? cache[n] : (cache[n] = gl.getUniformLocation(p, n))) };
+  }
+
   let P; // main program
   let FX; // edge-aware resolve for smoother silhouettes
   let fbo;
@@ -239,7 +266,7 @@
   const QUAL = [
     { scale: 0.65, steps: 56, atmN: 6, shadow: 0, stepMin: 0.085, sky: 1024 },
     { scale: 0.82, steps: 84, atmN: 8, shadow: 1, stepMin: 0.07, sky: 1024 },
-    { scale: 1.0, steps: 120, atmN: 12, shadow: 1, stepMin: 0.055, sky: 2048 },
+    { scale: 1.0, steps: 120, atmN: 12, shadow: 1, stepMin: 0.055, sky: 1024 },
   ];
   const touchDevice = matchMedia('(pointer: coarse)').matches;
   const deviceMemory = Number(navigator.deviceMemory) || 0;
@@ -322,7 +349,7 @@
     return tex;
   }
 
-  function initGL(earthImg) {
+  async function initGL(earthImg) {
     const c2 = document.createElement('canvas');
     c2.width = 1024;
     c2.height = 512;
@@ -337,12 +364,14 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
     gl.bindVertexArray(gl.createVertexArray());
+    // Start the heavy terrain program compiling before the synchronous sky pass.
+    const mainProgram = programAsync(expandCaps(window.SHADER_MAIN(TERRAIN_GLSL)));
     const sky = buildSky(QUAL[qi].sky);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky);
 
-    P = program(expandCaps(window.SHADER_MAIN(TERRAIN_GLSL)));
-    FX = program(window.SHADER_FXAA);
+    P = await mainProgram;
+    FX = await programAsync(window.SHADER_FXAA);
     gl.useProgram(FX.p);
     gl.uniform1i(FX.u('uScene'), 2);
     gl.useProgram(P.p);
@@ -1647,8 +1676,13 @@
   // ------------------------------------------------------------ boot
   const img = new Image();
   img.onerror = () => fail('지구 지도 데이터(earth-data.js)를 읽지 못했습니다.');
-  img.onload = () => {
-    initGL(img);
+  img.onload = async () => {
+    try {
+      await initGL(img);
+    } catch (e) {
+      fail(e && e.message ? e.message : String(e));
+      return;
+    }
     updateBodies(simT);
     const { n, name } = pickSite(3);
     landAt(3, n, name);
