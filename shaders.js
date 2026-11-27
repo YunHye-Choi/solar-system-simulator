@@ -115,7 +115,7 @@ uniform int uMode,uMapId;
 // baked height levels around the camera (tangent-plane coordinates in metres)
 uniform sampler2DArray uHT;
 uniform int uBake,uBakeOm;
-uniform vec4 uLv[6];       // centre u, centre v, texel spacing, valid
+uniform vec4 uLv[8];       // centre u, centre v, texel spacing, valid
 uniform vec4 uBk;          // level being baked: centre u, centre v, spacing
 uniform vec3 uE1,uE2,uC0,uCamT;
 uniform vec4 uBP[NB];      // body centre relative to camera (xyz), radius (w)
@@ -350,19 +350,40 @@ vec3 projP(vec3 q){
   float R=uBP[uF].w; float a=altOf(q); float l=R+a;
   return (q*uFM)*(R/l)-uCamN*(uR0*a/l);
 }
-// Height from the baked levels: finest valid level that covers the point and is not finer than foot.
+bool hsample(vec2 uv,int i,out float h){
+  vec4 L=uLv[i]; h=0.;
+  if(L.w<.5) return false;
+  vec2 d=(uv-L.xy)/(L.z*512.);
+  if(max(abs(d.x),abs(d.y))>=.49) return false;
+  h=texture(uHT,vec3(d+.5,float(i))).r;
+  return true;
+}
+// Blend adjacent baked levels by pixel footprint so their different octave limits
+// cannot form a visible ring or step at the horizon.
 bool hmap(vec3 q,float foot,out float h){
   float R=uBP[uF].w; vec3 g=q*uFM; float l=R+altOf(q);
   h=0.;
   if(uCamT.z+dot(g,uC0)<.35*l) return false;
   vec2 uv=(uCamT.xy+vec2(dot(g,uE1),dot(g,uE2)))*(R/l);
-  for(int i=0;i<6;i++){
-    vec4 L=uLv[i];
-    if(L.w<.5||(L.z<foot&&i<5)) continue;
-    vec2 d=(uv-L.xy)/(L.z*512.);
-    if(max(abs(d.x),abs(d.y))<.49){ h=texture(uHT,vec3(d+.5,float(i))).r; return true; }
+  int fine=6;
+  if(foot<=uLv[0].z) fine=0;
+  else if(foot<uLv[7].z){
+    for(int i=0;i<7;i++) if(foot<=uLv[i+1].z){ fine=i; break; }
   }
-  return false;
+  int coarse=min(fine+1,7);
+  float a=log2(max(uLv[fine].z,1.)),b=log2(max(uLv[coarse].z,1.));
+  float t=clamp((log2(max(foot,uLv[fine].z))-a)/max(b-a,1e-4),0.,1.);
+  vec2 df=(uv-uLv[fine].xy)/(uLv[fine].z*512.);
+  float edge=smoothstep(.35,.49,max(abs(df.x),abs(df.y)));
+  float hf=0.; bool vf=hsample(uv,fine,hf);
+  if(t>.72||edge>0.){
+    float hc=0.; bool vc=hsample(uv,coarse,hc);
+    if(vf&&vc){ h=mix(hf,hc,max(smoothstep(.72,1.,t),edge)); return true; }
+    if(vf){ h=hf; return true; }
+    if(vc){ h=hc; return true; }
+  }
+  if(vf){ h=hf; return true; }
+  return hsample(uv,coarse,h);
 }
 float chap(float X,float h,float c){
   float cc=sqrt(X+h);
@@ -601,7 +622,9 @@ void main(){
       sh=clamp(sh,0.,1.);
       if(id==3&&altP<3400.){ gAbs=false; gP=(p+sd*((3500.-altP)/max(cz,.15)))*uFM; sh*=1.-.65*cloudCov(min(16,omOf(tS,3.))); }
       if(id==6||id==7) sh*=ringShadow(id,rd*tS-Cf,sd);
-      vec3 L=Ts*max(ndl,0.)*sh*2.+uAmbS*day*(.6+.4*dot(nr,upL));
+      vec3 ambS=uAmbS;
+      if(id==10) ambS=max(ambS,vec3(.025,.023,.02));
+      vec3 L=Ts*max(ndl,0.)*sh*2.+ambS*day*(.6+.4*dot(nr,upL));
       col=alb*L*uLight;
       if(sp>0.){
         float fr=pow(1.-max(dot(-rd,nr),0.),5.);

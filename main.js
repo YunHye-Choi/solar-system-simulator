@@ -803,9 +803,9 @@
   // Ray marching reads terrain height from six nested 512x512 textures centred near the camera
   // instead of evaluating noise at every step. One stale level is re-baked per frame.
   const BN = 512;
-  const BS = [8, 32, 128, 512, 2048, 8192]; // texel spacing in metres
+  const BS = [1, 4, 8, 32, 128, 512, 2048, 8192]; // texel spacing in metres
   const bake = { ok: false, tex: null, dummy: null, fbo: null, body: -1, c0: [0, 1, 0], e1: [1, 0, 0], e2: [0, 0, 1], lv: BS.map(() => ({ cu: 0, cv: 0, valid: false })) };
-  const fLv = new Float32Array(24);
+  const fLv = new Float32Array(BS.length * 4);
   function initBake() {
     const mk = (n, layers) => {
       const t = gl.createTexture();
