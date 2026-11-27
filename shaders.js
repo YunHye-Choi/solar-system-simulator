@@ -383,16 +383,12 @@ bool hmap(vec3 q,float foot,out float h){
     if(vc){ h=hc; return true; }
   }
   if(vf){ h=hf; return true; }
-  float hfallback=0.;
-  if(hsample(uv,coarse,hfallback)){ h=hfallback; return true; }
-  // A newly focused body is baked from coarse to fine over several frames.
-  // Keep using any ready coarser level instead of evaluating full terrain noise
-  // at every ray-march step while those levels are being prepared.
-  for(int d=1;d<8;d++){
-    int farther=coarse+d;
-    if(farther<8&&hsample(uv,farther,hfallback)){ h=hfallback; return true; }
-    int nearer=fine-d;
-    if(nearer>=0&&hsample(uv,nearer,hfallback)){ h=hfallback; return true; }
+  if(hsample(uv,coarse,h)) return true;
+  // During cache warm-up only coarser levels are safe substitutes. Finer levels
+  // contain extra relief octaves that can create false ray-march intersections.
+  for(int i=1;i<8;i++){
+    int level=coarse+i;
+    if(level<8&&hsample(uv,level,h)) return true;
   }
   return false;
 }
