@@ -494,9 +494,9 @@ void main(){
     gAbs=false;
     if(stt==0){
       qE=rd*t;
-      // Check before the iteration-limit fallback: a downward ray can exhaust
-      // its steps inside the body and otherwise accept far-side terrain as a hit.
-      if(altOf(qE)>uHmax*1.02+1.&&dot(rd,uUp*uR0+qE)>0.){ tS=-1.; stt=7; continue; }
+      // Once a ray points outwards from the body, it cannot hit the near-side
+      // terrain. This also handles cameras below the conservative height envelope.
+      if(dot(rd,uUp*uR0+qE)>0.){ tS=-1.; stt=7; continue; }
       if(ms>=uSteps){
         float c=(uAlt-hl)*(2.*Rg+uAlt+hl); float d=b*b-c;
         if(c<0.) tS=t; else if(d>0.&&b<0.) tS=max(t,c/(-b+sqrt(d))); else tS=-1.;
